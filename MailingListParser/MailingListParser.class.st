@@ -4,7 +4,9 @@ Class {
 	#instVars : [
 		'mailingListUrl',
 		'mailingListPrefix',
-		'client'
+		'client',
+		'pool',
+		'futures'
 	],
 	#category : #MailingListParser
 }
@@ -29,6 +31,13 @@ MailingListParser >> fetchXmlFromURL: url [
 MailingListParser >> httpClient [
 
 	^ ZnClient new beOneShot
+]
+
+{ #category : #parsing }
+MailingListParser >> initialize [
+
+	super initialize.
+	futures := OrderedCollection new.
 ]
 
 { #category : #parsing }
@@ -91,11 +100,35 @@ MailingListParser >> parseLettersFromMonth: aYearMonthString [
 { #category : #parsing }
 MailingListParser >> parseLettersFromUrls: anArrayOfLetterUrls fromMonth: aYearMonthString [
 	| letters url |
+	[
 	letters := OrderedCollection new.
 	anArrayOfLetterUrls do: [ :each |
 		url := self letterUrlFromMonth: aYearMonthString fileName: each.
-		letters add: (self parseLetterFromUrl: url).
-	] displayingProgress: [ :each | 'Parsing letters from ', aYearMonthString ].
+		
+		self schedule: [ | letter |
+			letter := self parseLetterFromUrl: url.
+			letters add: letter ].
+	].
 
+	futures
+		do: [ :each | each waitForCompletion: 1 minute ]
+		displayingProgress: [ :each | 'Finished letters ...' ]
+	
+	] ensure: [ self workerPool stop ].
 	^ letters
+]
+
+{ #category : #parsing }
+MailingListParser >> schedule: aTask [
+
+	futures add: (self workerPool future: aTask)
+]
+
+{ #category : #parsing }
+MailingListParser >> workerPool [
+
+	^ pool ifNil: [ 
+		pool := TKTWorkerPool new.
+		pool poolMaxSize: 5.
+		pool start ]
 ]
