@@ -3,7 +3,8 @@ Class {
 	#superclass : #Object,
 	#instVars : [
 		'mailingListUrl',
-		'mailingListPrefix'
+		'mailingListPrefix',
+		'client'
 	],
 	#category : #MailingListParser
 }
@@ -11,6 +12,23 @@ Class {
 { #category : #'as yet unclassified' }
 MailingListParser class >> forPharoUsers [
 	^ self new initializePharoUsers.
+]
+
+{ #category : #parsing }
+MailingListParser >> fetchXmlFromURL: url [
+
+	| response |
+	response := self httpClient
+		url: url;
+		get;
+		response.
+	^ XMLHTMLParser parse: response contents
+]
+
+{ #category : #parsing }
+MailingListParser >> httpClient [
+
+	^ ZnClient new beOneShot
 ]
 
 { #category : #parsing }
@@ -41,11 +59,21 @@ MailingListParser >> mailingListUrl [
 ]
 
 { #category : #parsing }
+MailingListParser >> parseLetterFromUrl: aUrl [
+
+	| letterParser letterXML id |
+	letterParser := MailingListLetterParser new.
+	letterXML := self fetchXmlFromURL: aUrl.
+	id := letterParser parseId: aUrl.
+	^ letterParser parseLetterFromXml: letterXML andId: id
+]
+
+{ #category : #parsing }
 MailingListParser >> parseLetterUrlsFromMonth: aYearMonthString [
 	| url ingredientsXML |
 	
 	url := self letterUrlsSortedByDateFromMonth: aYearMonthString.
-	ingredientsXML := XMLHTMLParser parseURL: url.
+	ingredientsXML := self fetchXmlFromURL: url.
 	
 	^ (ingredientsXML xPath: '//li//a')
 		select: [ :each | each nodes first beginsWith: self mailingListPrefix ]
@@ -62,13 +90,11 @@ MailingListParser >> parseLettersFromMonth: aYearMonthString [
 
 { #category : #parsing }
 MailingListParser >> parseLettersFromUrls: anArrayOfLetterUrls fromMonth: aYearMonthString [
-	| letters letterParser url |
+	| letters url |
 	letters := OrderedCollection new.
-	letterParser := MailingListLetterParser new.
-
 	anArrayOfLetterUrls do: [ :each |
 		url := self letterUrlFromMonth: aYearMonthString fileName: each.
-		letters add: (letterParser parseLetterFromUrl: url).
+		letters add: (self parseLetterFromUrl: url).
 	] displayingProgress: [ :each | 'Parsing letters from ', aYearMonthString ].
 
 	^ letters

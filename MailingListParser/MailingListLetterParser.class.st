@@ -50,12 +50,10 @@ MailingListLetterParser >> parseId: aUrl [
 ]
 
 { #category : #parsing }
-MailingListLetterParser >> parseLetterFromUrl: aUrl [
-	| letterXML |
-	letterXML := XMLHTMLParser parseURL: aUrl.
+MailingListLetterParser >> parseLetterFromXml: letterXML andId: anId [
 	
 	^ MailingListLetter new
-		id: (self parseId: aUrl);
+		id: anId;
 		datetime: (self parseDatetime: letterXML);
 		title: (self parseTitle: letterXML);
 		authorName: (self parseAuthorName: letterXML);
