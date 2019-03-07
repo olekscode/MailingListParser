@@ -33,6 +33,12 @@ MailingListLetter >> authorName: anObject [
 ]
 
 { #category : #accessing }
+MailingListLetter >> cleanupWith: aCleaner [
+	title := aCleaner cleanTitle: contents.
+	contents := aCleaner cleanContents: contents
+]
+
+{ #category : #accessing }
 MailingListLetter >> contents [
 	^ contents
 ]
